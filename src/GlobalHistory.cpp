@@ -6,6 +6,7 @@
 #include "ImGui/Renderer.h"
 #include "ImGui/Styles.h"
 #include "ImGui/Util.h"
+#include "LocalHistory.h"
 #include "NPCNameProvider.h"
 
 namespace GlobalHistory
@@ -333,7 +334,7 @@ namespace GlobalHistory
 		}
 
 		if (const auto* controlMap = RE::ControlMap::GetSingleton();
-			!controlMap || controlMap->contextPriorityStack.back() != RE::UserEvents::INPUT_CONTEXT_ID::kGameplay || controlMap->textEntryCount) {
+			!controlMap || controlMap->GetRuntimeData().contextPriorityStack.back() != RE::UserEvents::INPUT_CONTEXT_ID::kGameplay || controlMap->GetRuntimeData().textEntryCount) {
 			return false;
 		}
 
@@ -504,16 +505,28 @@ namespace GlobalHistory
 			if (!hideButton) {
 				auto [buttonFont, buttonFontSize] = MANAGER(IconFont)->GetButtonFont();
 				ImGui::PushFont(buttonFont, buttonFontSize);
-				{
-					const auto icon = MANAGER(Hotkeys)->EscapeIcon();
-
-					// exit button position (1784,1015) + offset (32) at 1080p
-					static const auto windowSize = RE::BSGraphics::Renderer::GetScreenSize();
-					static float      posY = 0.93981481481f * windowSize.height;
-					static float      posX = 0.92916666666f * windowSize.width;
+				if (stl::IsVR()) {
+					// A real framed button below the archive panel, not the flat branch's
+					// desktop-corner label -- "Back" rather than "Exit" when returning to a
+					// still-live conversation (Local's own ShouldDraw() re-shows it once this closes).
+					const bool  returningToConversation = MANAGER(LocalHistory)->IsDialogueMenuOpen();
+					const char* label = returningToConversation ? "$DH_Back_Button"_T : "$DH_Exit_Button"_T;
+					const float width = ImGui::CalcTextSize(label).x + ImGui::GetStyle().FramePadding.x * 2;
+					ImGui::PushVRButtonStyle();
+					ImGui::AlignForWidth(width);
+					if (ImGui::Button(label)) {
+						SetGlobalHistoryOpen(false);
+					}
+					ImGui::PopVRButtonStyle();
+				} else {
+					// exit button position (1784,1015) + offset (32) at 1080p. Uses the current ImGui
+					// viewport (tracks io.DisplaySize), not the game's raw screen size.
+					const auto windowSize = ImGui::GetNativeViewportSize();
+					float      posY = 0.93981481481f * windowSize.y;
+					float      posX = 0.92916666666f * windowSize.x;
 
 					ImGui::SetCursorScreenPos({ posX, posY });
-					ImGui::ButtonIconWithLabel("$DH_Exit_Button"_T, icon);
+					ImGui::ButtonIconWithLabel("$DH_Exit_Button"_T, MANAGER(Hotkeys)->EscapeIcon());
 					if (ImGui::IsItemSelected()) {
 						SetGlobalHistoryOpen(false);
 					}
@@ -545,9 +558,16 @@ namespace GlobalHistory
 				RE::UIBlurManager::GetSingleton()->IncrementBlurCount();
 			}
 
-			// hides compass but not notifications
-			RE::SendHUDMessage::PushHUDMode("WorldMapMode");
-			if (a_showCursor) {
+			// Hides the compass (but not notifications) on flat by borrowing the map's HUD mode —
+			// in VR this same trick surfaces the game's own "world map opened" indicator, which is
+			// confusing for what's just an archive menu, so skip it there.
+			if (!stl::IsVR()) {
+				RE::SendHUDMessage::PushHUDMode("WorldMapMode");
+			}
+			// CursorMenu routes the real Windows mouse cursor into the game for flat-screen
+			// clicking; it has nothing to do with VR input (the helper feeds the wand directly
+			// into ImGui) and opening it here fights the helper for input focus/routing.
+			if (a_showCursor && !stl::IsVR()) {
 				RE::UIMessageQueue::GetSingleton()->AddMessage(RE::CursorMenu::MENU_NAME, RE::UI_MESSAGE_TYPE::kShow, nullptr);
 			}
 
@@ -571,14 +591,16 @@ namespace GlobalHistory
 				RE::UIBlurManager::GetSingleton()->DecrementBlurCount();
 			}
 
-			RE::SendHUDMessage::PopHUDMode("WorldMapMode");
-			RE::UIMessageQueue::GetSingleton()->AddMessage(RE::CursorMenu::MENU_NAME, RE::UI_MESSAGE_TYPE::kHide, nullptr);
+			if (!stl::IsVR()) {
+				RE::SendHUDMessage::PopHUDMode("WorldMapMode");
+				RE::UIMessageQueue::GetSingleton()->AddMessage(RE::CursorMenu::MENU_NAME, RE::UI_MESSAGE_TYPE::kHide, nullptr);
+			}
 
 			RE::PlaySound("UIMenuCancel");
 		}
 
 		if (!unpauseMenu) {
-			RE::Main::GetSingleton()->freezeTime = a_open;
+			MAIN_DATA(RE::Main::GetSingleton()).freezeTime = a_open;
 		}
 
 		ImGui::Renderer::RenderMenus(a_open);
@@ -739,7 +761,7 @@ namespace GlobalHistory
 		RE::BSResource::ID file;
 		file.GenerateFromPath(a_voiceline.c_str());
 
-		RE::BSAudioManager::GetSingleton()->BuildSoundDataFromFile(voiceHandle, file, 128 | 0x10, 128);
+		RE::BSAudioManager::GetSingleton()->GetSoundHandleByFile(voiceHandle, file, 128 | 0x10, 128);
 
 		auto soundOutput = RE::BGSDefaultObjectManager::GetSingleton()->GetObject<RE::BGSSoundOutput>(RE::DEFAULT_OBJECTS::kDialogueOutputModel2D);
 		if (soundOutput) {

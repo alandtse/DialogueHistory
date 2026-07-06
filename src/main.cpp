@@ -21,6 +21,7 @@ void OnInit(SKSE::MessagingInterface::Message* a_msg)
 		{
 			logger::info("{:*^50}", "POST POST LOAD");
 			NPCNameProvider::GetSingleton()->RequestAPI();
+			ImGui::Renderer::Connect();  // ImGuiVRHelper handshake (no-op on flat builds)
 		}
 		break;
 	case SKSE::MessagingInterface::kDataLoaded:
@@ -65,7 +66,47 @@ void OnInit(SKSE::MessagingInterface::Message* a_msg)
 	}
 }
 
-#ifdef SKYRIM_AE
+#if defined(SKYRIM_SUPPORT_VR) || defined(COMMONLIBSSE_NG)
+// One universal NG DLL serving SE/AE/VR: advertise all compatible runtimes and gate on the
+// runtime version at query time.
+extern "C" DLLEXPORT constinit auto SKSEPlugin_Version = []() {
+	SKSE::PluginVersionData v;
+	v.PluginVersion(Version::MAJOR);
+	v.PluginName("DialogueHistory");
+	v.AuthorName("powerofthree");
+	v.UsesAddressLibrary();
+	v.UsesUpdatedStructs();
+	v.CompatibleVersions({ SKSE::RUNTIME_SSE_1_5_97, SKSE::RUNTIME_SSE_LATEST, SKSE::RUNTIME_VR_1_4_15 });
+
+	return v;
+}();
+
+extern "C" DLLEXPORT bool SKSEAPI SKSEPlugin_Query(const SKSE::QueryInterface* a_skse, SKSE::PluginInfo* a_info)
+{
+	a_info->infoVersion = SKSE::PluginInfo::kVersion;
+	a_info->name = "DialogueHistory";
+	a_info->version = Version::MAJOR;
+
+	if (a_skse->IsEditor()) {
+		logger::critical("Loaded in editor, marking as incompatible"sv);
+		return false;
+	}
+
+	const auto ver = a_skse->RuntimeVersion();
+	if (ver.major() == 1 && ver.minor() == 4) {
+		if (ver < SKSE::RUNTIME_VR_1_4_15) {
+			logger::critical("Unsupported VR runtime version {}", ver.string());
+			return false;
+		}
+	} else if (ver < SKSE::RUNTIME_SSE_1_5_39) {
+		logger::critical("Unsupported SSE runtime version {}", ver.string());
+		return false;
+	}
+
+	return true;
+}
+#else
+#	ifdef SKYRIM_AE
 extern "C" DLLEXPORT constinit auto SKSEPlugin_Version = []() {
 	SKSE::PluginVersionData v;
 	v.PluginVersion(Version::MAJOR);
@@ -77,7 +118,7 @@ extern "C" DLLEXPORT constinit auto SKSEPlugin_Version = []() {
 
 	return v;
 }();
-#else
+#	else
 extern "C" DLLEXPORT bool SKSEAPI SKSEPlugin_Query(const SKSE::QueryInterface* a_skse, SKSE::PluginInfo* a_info)
 {
 	a_info->infoVersion = SKSE::PluginInfo::kVersion;
@@ -97,6 +138,7 @@ extern "C" DLLEXPORT bool SKSEAPI SKSEPlugin_Query(const SKSE::QueryInterface* a
 
 	return true;
 }
+#	endif
 #endif
 
 void InitializeLog()

@@ -77,11 +77,15 @@ namespace stl
 {
 	using namespace SKSE::stl;
 
+	// a_write_branch replaces a tail-call JMP (E9) instead of a CALL (E8). The VR build
+	// needs it for the PopHUDMode site that the engine compiled as a tail call (see Hooks.cpp).
 	template <class T>
-	void write_thunk_call(std::uintptr_t a_src)
+	void write_thunk_call(std::uintptr_t a_src, bool a_write_branch = false)
 	{
 		auto& trampoline = SKSE::GetTrampoline();
-		T::func = trampoline.write_call<5>(a_src, T::thunk);
+		T::func = a_write_branch ?
+		              trampoline.write_branch<5>(a_src, T::thunk) :
+		              trampoline.write_call<5>(a_src, T::thunk);
 	}
 
 	template <class F, class T>
@@ -90,13 +94,22 @@ namespace stl
 		REL::Relocation<std::uintptr_t> vtbl{ F::VTABLE[0] };
 		T::func = vtbl.write_vfunc(T::idx, T::thunk);
 	}
+
+	inline bool IsVR()
+	{
+		return REL::Module::IsVR();
+	}
 }
 
-#ifdef SKYRIM_AE
-#	define OFFSET(se, ae) ae
-#else
-#	define OFFSET(se, ae) se
-#endif
+// Single cross-runtime CommonLibSSE-NG DLL: offsets and engine fields resolve at load time.
+// OFFSET_3 supplies a distinct VR byte offset; OFFSET defaults VR to the SE value.
+#define OFFSET(se, ae) REL::VariantOffset(se, ae, se)
+#define OFFSET_3(se, ae, vr) REL::VariantOffset(se, ae, vr)
+
+// Engine fields that NG keeps in RUNTIME_DATA blocks are reached through its
+// runtime-detecting accessors. These aliases name the accessor for each struct.
+#define RENDERER_DATA(a_obj) (a_obj)->GetRuntimeData()
+#define MAIN_DATA(a_obj)     (a_obj)->GetRuntimeData()
 
 #include "Compatibility.h"
 #include "Translation.h"

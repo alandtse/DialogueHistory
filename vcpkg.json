@@ -3,16 +3,19 @@
   "version-string": "2.3.3",
   "description": "",
   "homepage": "",
-  "license": "MIT",
+  "license": "GPL-3.0-or-later",
   "dependencies": [
     "clib-util",
     "directxtex",
+    "directxtk",
     "freetype",
     {
       "name": "imgui",
       "features": [ "dx11-binding", "win32-binding", "freetype", "wchar32" ]
     },
     "glaze",
+    "nlohmann-json",
+    "rapidcsv",
     "rsm-binary-io",
     "spdlog",
     "srell",

@@ -1,14 +1,13 @@
 cmake_minimum_required(VERSION 3.20)
 set(NAME "po3_DialogueHistory" CACHE STRING "")
 set(VERSION 2.3.3 CACHE STRING "")
-set(AE_VERSION 1)
-set(VR_VERSION 1)
+# VR variant counter appended as the 4th version part. 0 = base (Nexus shows the
+# 3-part upstream version); bump to 1+ for a re-release on the same upstream base.
+set(VR_VERSION 0)
 
 # ---- Options ----
 
 option(COPY_BUILD "Copy the build output to the Skyrim directory." TRUE)
-option(BUILD_SKYRIMVR "Build for Skyrim VR" OFF)
-option(BUILD_SKYRIMAE "Build for Skyrim AE" OFF)
 
 # ---- Cache build vars ----
 
@@ -33,32 +32,29 @@ macro(find_commonlib_path)
 endmacro()
 
 set_from_environment(VCPKG_ROOT)
-if(BUILD_SKYRIMAE)
-	add_compile_definitions(SKYRIM_AE)
-	add_compile_definitions(SKYRIM_SUPPORT_AE)
-	set(CommonLibName "CommonLibSSE")
-	set_from_environment(SkyrimAEPath)
-	set(SkyrimPath ${SkyrimAEPath})
-	set(SkyrimVersion "Skyrim AE")
-	set(VERSION ${VERSION}.${AE_VERSION})
-elseif(BUILD_SKYRIMVR)
-	add_compile_definitions(SKYRIMVR)
-	add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
-	set(CommonLibName "CommonLibVR")
-	set_from_environment(SkyrimVRPath)
-	set(SkyrimPath ${SkyrimVRPath})
-	set(SkyrimVersion "Skyrim VR")
-	set(VERSION ${VERSION}.${VR_VERSION})
-else()
-	set(CommonLibName "CommonLibSSE")
-	set_from_environment(Skyrim64Path)
-	set(SkyrimPath ${Skyrim64Path})
-	set(SkyrimVersion "Skyrim SSE")
-endif()
+# One universal build: every runtime is enabled and SE/AE/VR are detected at runtime
+# (REL::Module / stl::IsVR), so a single NG DLL loads and renders correctly on all of
+# them — no per-runtime variants. Built against the bundled NG CommonLib, whose runtime
+# accessors (GetRuntimeData/GetVRRuntimeData/VariantOffset) the non-NG CommonLibSSE lacks.
+add_compile_definitions(SKYRIM_SUPPORT_VR)
+add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
+set(CommonLibName "CommonLibSSE")
+set(CommonLibPath "${CMAKE_CURRENT_SOURCE_DIR}/extern/CommonLibVR")
+set(ENABLE_SKYRIM_SE ON CACHE BOOL "" FORCE)
+set(ENABLE_SKYRIM_AE ON CACHE BOOL "" FORCE)
+set(ENABLE_SKYRIM_VR ON CACHE BOOL "" FORCE)
+set(BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(VERSION ${VERSION}.${VR_VERSION})
+
+# Deploy to every Skyrim install that's configured; the same DLL serves all of them.
+set_from_environment(Skyrim64Path)
+set_from_environment(SkyrimAEPath)
+set_from_environment(SkyrimVRPath)
+
 find_commonlib_path()
 message(
 	STATUS
-	"Building ${NAME} ${VERSION} for ${SkyrimVersion} at ${SkyrimPath} with ${CommonLibName} at ${CommonLibPath}."
+	"Building ${NAME} ${VERSION} (universal SE/AE/VR) with ${CommonLibName} at ${CommonLibPath}."
 )
 
 if (DEFINED VCPKG_ROOT)
@@ -136,6 +132,16 @@ find_package(directxtex CONFIG REQUIRED)
 find_package(glaze CONFIG REQUIRED)
 find_package(Freetype REQUIRED)
 find_package(imgui CONFIG REQUIRED)
+find_package(nlohmann_json CONFIG REQUIRED)
+
+include(FetchContent)
+FetchContent_Declare(
+	ImGuiVRHelper
+	GIT_REPOSITORY https://github.com/alandtse/imgui-vr-helper.git
+	GIT_TAG        v1.7.0
+	SOURCE_SUBDIR  api
+)
+FetchContent_MakeAvailable(ImGuiVRHelper)
 
 find_path(SRELL_INCLUDE_DIRS "srell.hpp")
 find_path(CLIB_UTIL_INCLUDE_DIRS "ClibUtil/utils.hpp")
@@ -202,6 +208,8 @@ target_link_libraries(
 		Freetype::Freetype
 		glaze::glaze
 		imgui::imgui
+		ImGuiVRHelper::api
+		nlohmann_json::nlohmann_json
 )
 
 target_precompile_headers(
@@ -238,17 +246,26 @@ endif ()
 # ---- Post build ----
 
 if (COPY_BUILD)
-	if (DEFINED SkyrimPath)
-		add_custom_command(
-			TARGET ${PROJECT_NAME}
-			POST_BUILD
-			COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:${PROJECT_NAME}> ${SkyrimPath}/SKSE/Plugins/
-			COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_PDB_FILE:${PROJECT_NAME}> ${SkyrimPath}/SKSE/Plugins/
-		)
-	else ()
+	set(deployed FALSE)
+	foreach (game_path "${Skyrim64Path}" "${SkyrimAEPath}" "${SkyrimVRPath}")
+		if (game_path AND IS_DIRECTORY "${game_path}")
+			add_custom_command(
+				TARGET ${PROJECT_NAME}
+				POST_BUILD
+				# Deploy the plugin plus the mod's Data assets so a dev build fully
+				# refreshes the install — not just the DLL.
+				COMMAND ${CMAKE_COMMAND} -E make_directory "${game_path}/SKSE/Plugins"
+				COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:${PROJECT_NAME}> "${game_path}/SKSE/Plugins/"
+				COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_PDB_FILE:${PROJECT_NAME}> "${game_path}/SKSE/Plugins/"
+				COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/Skyrim/Data" "${game_path}"
+			)
+			set(deployed TRUE)
+		endif ()
+	endforeach ()
+	if (NOT deployed)
 		message(
 			WARNING
-			"Variable ${SkyrimPath} is not defined. Skipping post-build copy command."
+			"No Skyrim install path is set (Skyrim64Path/SkyrimAEPath/SkyrimVRPath). Skipping post-build copy."
 		)
 	endif ()
 endif ()

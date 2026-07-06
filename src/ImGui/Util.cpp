@@ -99,6 +99,22 @@ namespace ImGui
 		return false;
 	}
 
+	void PushVRButtonStyle()
+	{
+		const auto& colors = GetStyle().Colors;
+		const ImVec4 button = colors[ImGuiCol_Header];
+		const ImVec4 hovered = colors[ImGuiCol_HeaderHovered];
+		const ImVec4 active = colors[ImGuiCol_HeaderActive];
+		PushStyleColor(ImGuiCol_Button, button);
+		PushStyleColor(ImGuiCol_ButtonHovered, hovered);
+		PushStyleColor(ImGuiCol_ButtonActive, active);
+	}
+
+	void PopVRButtonStyle()
+	{
+		PopStyleColor(3);
+	}
+
 	void Spacing(std::uint32_t a_numSpaces)
 	{
 		for (std::uint32_t i = 0; i < a_numSpaces; i++) {

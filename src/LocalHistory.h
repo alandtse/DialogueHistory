@@ -38,6 +38,13 @@ namespace LocalHistory
 		bool dialogueMenuOpen{ false };
 		bool localHistoryMenuOpen{ false };
 		bool tempClosed{ false };
+		// VR only: unlike flat's explicit toggle-to-open (localHistoryMenuOpen, which also
+		// freezes time / blurs / plays a sound -- appropriate for a modal popup, not for an
+		// always-present pointer-focus side panel), the VR overlay shows its full content by
+		// default -- there's room for it and no flat screen to clutter -- and this just tracks
+		// whether the player minimized it for the current conversation. Reset true whenever a new
+		// dialogue starts.
+		bool vrHistoryVisible{ true };
 
 		std::string        gameTimeString;
 		std::tm            gameTime;

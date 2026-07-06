@@ -39,5 +39,13 @@ cmake --build build --config Release
 cmake --preset vs2022-windows-vcpkg-ae
 cmake --build buildae --config Release
 ```
-## License
-[MIT](LICENSE)
+## Licensing
+
+[GPL-3.0-or-later](COPYING) WITH a [Modding Exception and a GPL-3.0 Linking
+Exception (with Corresponding Source)](EXCEPTIONS.md), where:
+
+- **Modded Code** — Skyrim and its variants
+- **Modding Libraries** — [SKSE](https://skse.silverlock.org/), CommonLib and variants
+
+This is a VR fork of [powerof3's Dialogue History](https://github.com/powerof3/DialogueHistory);
+the original work is © powerofthree under the MIT License.

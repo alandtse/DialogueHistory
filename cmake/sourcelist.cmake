@@ -10,6 +10,7 @@ set(sources ${sources}
 	src/ImGui/Renderer.cpp
 	src/ImGui/Styles.cpp
 	src/ImGui/Util.cpp
+	src/ImGui/VRHelper.cpp
 	src/Input.cpp
 	src/LocalHistory.cpp
 	src/NPCNameProvider.cpp

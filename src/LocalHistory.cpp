@@ -4,6 +4,7 @@
 #include "Hotkeys.h"
 #include "ImGui/Renderer.h"
 #include "ImGui/Styles.h"
+#include "ImGui/VRHelper.h"
 
 namespace LocalHistory
 {
@@ -28,7 +29,9 @@ namespace LocalHistory
 		ImGui::SetNextWindowPos(ImGui::GetNativeViewportPos());
 		ImGui::SetNextWindowSize(ImGui::GetNativeViewportSize());
 
-		auto localHistoryOpen = IsLocalHistoryOpen();
+		// VR: no explicit open toggle -- there's room to just show the full history by default;
+		// vrHistoryVisible tracks whether the player minimized it instead.
+		auto localHistoryOpen = stl::IsVR() ? vrHistoryVisible : IsLocalHistoryOpen();
 
 		ImGui::Begin("##Main", nullptr, ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoBringToFrontOnFocus);
 		{
@@ -42,6 +45,48 @@ namespace LocalHistory
 				ImGui::Begin("##LocalHistory", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse);
 				{
 					ImGui::ExtendWindowPastBorder();
+
+					if (stl::IsVR()) {
+						auto [buttonFont, buttonFontSize] = MANAGER(IconFont)->GetButtonFont();
+						ImGui::PushFont(buttonFont, buttonFontSize);
+						ImGui::PushVRButtonStyle();
+
+						// The dialogue menu's own grip binding closes it, so the helper's normal
+						// off-panel grip-drag can't be used to reposition this panel during a live
+						// conversation -- hold trigger on this button instead (IsItemActive spans
+						// the whole hold, even once the wand ray drifts off it as the user moves
+						// their hand to drag).
+						ImGui::Button("$DH_Move_Button"_T);
+						if (ImGui::IsItemActive()) {
+							ImGui::Renderer::VR::RequestReposition(ImGui::Renderer::VR::Panel::Local);
+						}
+
+						// Flat screen can jump from a live conversation into the full searchable
+						// archive via the Global hotkey alone (GlobalHistory::IsValid() doesn't
+						// block the dialogue menu) -- this is the wand-clickable equivalent, since
+						// VR has no keyboard-driven path.
+						ImGui::SameLine();
+						if (ImGui::Button("$DH_Title_Conversation"_T)) {
+							MANAGER(GlobalHistory)->SetDrawConversation(true);
+							MANAGER(GlobalHistory)->SetGlobalHistoryOpen(true);
+						}
+
+						// Minimize: a small corner glyph (like a desktop window's minimize
+						// button) rather than a labeled button competing with Move/Search --
+						// top-right of the panel it hides, not a separate floating element
+						// elsewhere on screen the player has to go hunting for.
+						if (!hideButton) {
+							const float glyphWidth = ImGui::CalcTextSize("_").x + ImGui::GetStyle().FramePadding.x * 2;
+							ImGui::SameLine();
+							ImGui::AlignForWidth(glyphWidth, 1.0f);
+							if (ImGui::Button("_##Minimize")) {
+								vrHistoryVisible = false;
+							}
+						}
+
+						ImGui::PopVRButtonStyle();
+						ImGui::PopFont();
+					}
 
 					auto [headerFont, headerFontSize] = MANAGER(IconFont)->GetHeaderFont();
 					ImGui::PushFont(headerFont, headerFontSize);
@@ -64,20 +109,37 @@ namespace LocalHistory
 			if (!hideButton) {
 				auto [buttonFont, buttonFontSize] = MANAGER(IconFont)->GetButtonFont();
 				ImGui::PushFont(buttonFont, buttonFontSize);
-				{
+				if (stl::IsVR()) {
+					// Reopen: only needed when minimized -- the giant panel (and its own
+					// minimize glyph) is gone, so this is the sole way back in. Centered like
+					// the rest of this mod's VR buttons, not the flat branch's desktop-corner
+					// coordinate below (tuned for an invitation button beside the game's own
+					// dialogue UI, not a giant centered panel).
+					if (!localHistoryOpen) {
+						const float width = ImGui::CalcTextSize("$DH_Title"_T).x + ImGui::GetStyle().FramePadding.x * 2;
+						ImGui::PushVRButtonStyle();
+						ImGui::AlignForWidth(width);
+						ImGui::SetCursorPosY(ImGui::GetNativeViewportSize().y * 0.9f);
+						if (ImGui::Button("$DH_Title"_T)) {
+							vrHistoryVisible = true;
+						}
+						ImGui::PopVRButtonStyle();
+					}
+				} else {
 					const auto& icons = MANAGER(Hotkeys)->LocalHistoryIcons();
 
-					// exit button position (1784,1015) + offset (32) at 1080p
-					static const auto windowSize = RE::BSGraphics::Renderer::GetScreenSize();
-					static float      posY = 0.93981481481f * windowSize.height;
-					float             posX;
+					// exit button position (1784,1015) + offset (32) at 1080p. Uses the current ImGui
+					// viewport (tracks io.DisplaySize), not the game's raw screen size.
+					const auto windowSize = ImGui::GetNativeViewportSize();
+					float      posY = 0.93981481481f * windowSize.y;
+					float      posX;
 					if (!localHistoryOpen) {
 						// calculate position backwards
-						static float exitButtonPos = 0.9125f * windowSize.width;
+						float posX_exitButtonPos = 0.9125f * windowSize.x;
 						static float textSize = ImGui::CalcTextSize("$DH_Title"_T).x;
 						static float innerSpacing = ImGui::GetStyle().ItemInnerSpacing.x * 0.40f;
 
-						posX = exitButtonPos;
+						posX = posX_exitButtonPos;
 						posX -= textSize;
 						posX -= innerSpacing;
 						for (auto& icon : icons) {
@@ -85,7 +147,7 @@ namespace LocalHistory
 						}
 
 					} else {
-						posX = 0.92916666666f * windowSize.width;
+						posX = 0.92916666666f * windowSize.x;
 						if (icons.size() > 1) {
 							posX -= (*icons.begin())->size.x;
 						}
@@ -93,8 +155,8 @@ namespace LocalHistory
 
 					ImGui::SetCursorScreenPos({ posX, posY });
 					ImGui::ButtonIconWithLabel(localHistoryOpen ? "$DH_Exit_Button"_T : "$DH_Title"_T, icons);
-					// no dialogue menu click because the real menu registers as a click too
 					if (ImGui::IsItemSelected() && localHistoryOpen) {
+						// no dialogue menu click because the real menu registers as a click too
 						SetLocalHistoryOpen(false);
 					}
 				}
@@ -129,7 +191,17 @@ namespace LocalHistory
 		};
 
 		const auto UI = RE::UI::GetSingleton();
-		if (!UI || std::ranges::any_of(badMenus, [&](const auto& menuName) { return UI->IsMenuOpen(menuName); }) || !UI->IsShowingMenus()) {
+		if (!UI) {
+			return true;
+		}
+		const auto badMenu = std::ranges::find_if(badMenus, [&](const auto& menuName) { return UI->IsMenuOpen(menuName); });
+		const bool hasBadMenu = badMenu != badMenus.end();
+		// IsShowingMenus() reflects the flat 2D HUD/menu layer's visibility flag. In VR it goes
+		// false during ordinary dialogue (VR's DialogueMenu isn't part of that 2D layer), so this
+		// check only makes sense on flat screen; skip it in VR rather than mistake it for a
+		// "HUD hidden" state (screenshot mode etc).
+		const bool notShowingMenus = !stl::IsVR() && !UI->IsShowingMenus();
+		if (hasBadMenu || notShowingMenus) {
 			return true;
 		}
 
@@ -147,7 +219,13 @@ namespace LocalHistory
 			return;
 		}
 
-		SetLocalHistoryOpen(!IsLocalHistoryOpen());
+		// VR: mirror the wand-clickable minimize/reopen button (flip vrHistoryVisible) rather
+		// than SetLocalHistoryOpen, which pokes flat-only DialogueMenu Scaleform variables.
+		if (stl::IsVR()) {
+			vrHistoryVisible = !vrHistoryVisible;
+		} else {
+			SetLocalHistoryOpen(!IsLocalHistoryOpen());
+		}
 	}
 
 	void Manager::SetDialogueMenuOpen(bool a_opened)
@@ -168,6 +246,7 @@ namespace LocalHistory
 		} else {
 			UpdateDialogue();
 			ImGui::Styles::GetSingleton()->RefreshStyle();
+			vrHistoryVisible = true;  // show expanded by default for each new conversation (VR only)
 		}
 
 		ImGui::Renderer::RenderMenus(a_opened);
@@ -213,7 +292,7 @@ namespace LocalHistory
 		}
 
 		if (!unpauseMenu) {
-			RE::Main::GetSingleton()->freezeTime = a_opened;
+			MAIN_DATA(RE::Main::GetSingleton()).freezeTime = a_opened;
 		}
 	}
 

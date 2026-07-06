@@ -291,6 +291,7 @@ namespace GlobalHistory
 		void SetGlobalHistoryOpen(bool a_open, bool a_showCursor = true);
 		void ToggleActive();
 		bool TryOpenFromTweenMenu(bool a_showCursor = true);
+		void SetDrawConversation(bool a_conversation) { drawConversation = a_conversation; }
 
 		bool WasMenuOpenJustNow() const;
 		void SetMenuOpenJustNow(bool a_open);

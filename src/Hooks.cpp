@@ -62,14 +62,13 @@ namespace Hooks
 
 		static void Install()
 		{
-			std::array targets{
-				std::make_pair(RELOCATION_ID(19119, 19521), 0x2B2),
-				std::make_pair(RELOCATION_ID(36543, 37544), OFFSET(0x8EC, 0x8C2)),
-			};
-			for (auto& [id, offset] : targets) {
-				REL::Relocation<std::uintptr_t> target(id, offset);
-				stl::write_thunk_call<ShowSubtitle>(target.address());
-			}
+			// VR call-site offsets verified against SkyrimVR.exe: both equal the SE offset
+			// (VR 1.4.15 tracks SE 1.5.97 here; AE 1.6.x diverges only on the second site).
+			REL::Relocation<std::uintptr_t> target1(RELOCATION_ID(19119, 19521), OFFSET_3(0x2B2, 0x2B2, 0x2B2));
+			stl::write_thunk_call<ShowSubtitle>(target1.address());
+
+			REL::Relocation<std::uintptr_t> target2(RELOCATION_ID(36543, 37544), OFFSET_3(0x8EC, 0x8C2, 0x8EC));
+			stl::write_thunk_call<ShowSubtitle>(target2.address());
 		}
 	};
 
@@ -85,14 +84,15 @@ namespace Hooks
 
 		static void Install()
 		{
-			std::array targets{
-				std::make_pair(RELOCATION_ID(50610, 51504), 0xA2),
-				std::make_pair(RELOCATION_ID(50612, 51506), OFFSET(0x2AF, 0x3AE)),
-			};
-			for (auto& [id, offset] : targets) {
-				REL::Relocation<std::uintptr_t> target(id, offset);
+			// The 50610 call site (CreateMenu) has no PushHUDMode call in the VR build —
+			// verified absent in SkyrimVR.exe — so install it on flat runtimes only.
+			if (!stl::IsVR()) {
+				REL::Relocation<std::uintptr_t> target(RELOCATION_ID(50610, 51504), 0xA2);
 				stl::write_thunk_call<PushHUDMode>(target.address());
 			}
+
+			REL::Relocation<std::uintptr_t> target(RELOCATION_ID(50612, 51506), OFFSET_3(0x2AF, 0x3AE, 0x3AC));
+			stl::write_thunk_call<PushHUDMode>(target.address());
 		}
 	};
 
@@ -108,15 +108,16 @@ namespace Hooks
 
 		static void Install()
 		{
-			std::array targets{
-				std::make_pair(RELOCATION_ID(50617, 51511), 0xA5),
-				std::make_pair(RELOCATION_ID(50612, 51506), OFFSET(0x2A8, 0x3A7)),
-				std::make_pair(RELOCATION_ID(50612, 51506), OFFSET(0xDE, 0xE1)),
-			};
-			for (auto& [id, offset] : targets) {
-				REL::Relocation<std::uintptr_t> target(id, offset);
-				stl::write_thunk_call<PopHUDMode>(target.address());
-			}
+			// In VR the engine compiled this PopHUDMode call as a tail-call JMP (verified
+			// at SkyrimVR.exe +0x37), so patch a branch thunk there instead of a call.
+			REL::Relocation<std::uintptr_t> target1(RELOCATION_ID(50617, 51511), OFFSET_3(0xA5, 0xA5, 0x37));
+			stl::write_thunk_call<PopHUDMode>(target1.address(), stl::IsVR());
+
+			REL::Relocation<std::uintptr_t> target2(RELOCATION_ID(50612, 51506), OFFSET_3(0x2A8, 0x3A7, 0x3A5));
+			stl::write_thunk_call<PopHUDMode>(target2.address());
+
+			REL::Relocation<std::uintptr_t> target3(RELOCATION_ID(50612, 51506), OFFSET_3(0xDE, 0xE1, 0xD6));
+			stl::write_thunk_call<PopHUDMode>(target3.address());
 		}
 	};
 
@@ -194,10 +195,10 @@ namespace Hooks
 
 	void Install()
 	{
-		REL::Relocation<std::uintptr_t> inputUnk(RELOCATION_ID(67315, 68617), 0x7B);
+		REL::Relocation<std::uintptr_t> inputUnk(RELOCATION_ID(67315, 68617), OFFSET_3(0x7B, 0x7B, 0x81));
 		stl::write_thunk_call<ProcessInputQueue>(inputUnk.address());
 
-		REL::Relocation<std::uintptr_t> topicClicked(RELOCATION_ID(50615, 51509), 0x5A);
+		REL::Relocation<std::uintptr_t> topicClicked(RELOCATION_ID(50615, 51509), OFFSET_3(0x5A, 0x5A, 0x7B));
 		stl::write_thunk_call<UpdateSelectedResponse>(topicClicked.address());
 
 		ShowSubtitle::Install();
@@ -206,14 +207,16 @@ namespace Hooks
 
 		stl::write_vfunc<RE::DialogueMenu, ProcessMessage>();
 
-		REL::Relocation<std::uintptr_t> hudMenuUserEvent(RELOCATION_ID(50748, 51643), 0x1E);
+		REL::Relocation<std::uintptr_t> hudMenuUserEvent(RELOCATION_ID(50748, 51643), OFFSET_3(0x1E, 0x1E, 0x1E));
 		stl::write_thunk_call<IsMenuOpen>(hudMenuUserEvent.address());
 
-		REL::Relocation<std::uintptr_t> take_ss{ RELOCATION_ID(35556, 36555), OFFSET(0x48E, 0x454) };  // Main::Swap
+		REL::Relocation<std::uintptr_t> take_ss{ RELOCATION_ID(35556, 36555), OFFSET_3(0x48E, 0x454, 0x496) };  // Main::Swap
 		stl::write_thunk_call<TakeScreenshot>(take_ss.address());
 
 		if (GetModuleHandle(L"TweenMenuOverhaul") != nullptr) {
-			if (GetModuleHandle(L"SkyrimSoulsRE.dll") == nullptr) {
+			// TweenMenuCameraState::Update (49985) has no VR address-library id, so on VR
+			// always use the CursorMenu vfunc path (the SkyrimSoulsRE branch also uses it).
+			if (!stl::IsVR() && GetModuleHandle(L"SkyrimSoulsRE.dll") == nullptr) {
 				REL::Relocation<std::uintptr_t> tweenCameraUpdate{ RELOCATION_ID(49985, 50925), OFFSET(0xC8, 0x1C7) };  // TweenMenuCameraState::Update
 				stl::write_thunk_call<StopTweenCamera>(tweenCameraUpdate.address());
 			} else {
