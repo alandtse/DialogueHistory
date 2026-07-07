@@ -101,7 +101,7 @@ namespace ImGui
 
 	void PushVRButtonStyle()
 	{
-		const auto& colors = GetStyle().Colors;
+		const auto&  colors = GetStyle().Colors;
 		const ImVec4 button = colors[ImGuiCol_Header];
 		const ImVec4 hovered = colors[ImGuiCol_HeaderHovered];
 		const ImVec4 active = colors[ImGuiCol_HeaderActive];

@@ -135,7 +135,7 @@ namespace LocalHistory
 					float      posX;
 					if (!localHistoryOpen) {
 						// calculate position backwards
-						float posX_exitButtonPos = 0.9125f * windowSize.x;
+						float        posX_exitButtonPos = 0.9125f * windowSize.x;
 						static float textSize = ImGui::CalcTextSize("$DH_Title"_T).x;
 						static float innerSpacing = ImGui::GetStyle().ItemInnerSpacing.x * 0.40f;
 

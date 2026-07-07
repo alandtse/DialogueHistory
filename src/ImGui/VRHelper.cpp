@@ -42,7 +42,7 @@ namespace ImGui::Renderer::VR
 		// recovers, and not every frame once connected.
 		static bool everLogged = false;
 		static bool prevFullyConnected = false;
-		const bool fullyConnected = local && global;
+		const bool  fullyConnected = local && global;
 		if (!everLogged || fullyConnected != prevFullyConnected) {
 			if (fullyConnected) {
 				logger::info("Connected to ImGuiVRHelper (conversation + archive panels)"sv);
