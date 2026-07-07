@@ -213,6 +213,11 @@ namespace LocalHistory
 		return localHistoryMenuOpen;
 	}
 
+	bool Manager::IsVRHistoryVisible() const
+	{
+		return vrHistoryVisible;
+	}
+
 	void Manager::ToggleActive()
 	{
 		if (!IsDialogueMenuOpen()) {
@@ -246,7 +251,6 @@ namespace LocalHistory
 		} else {
 			UpdateDialogue();
 			ImGui::Styles::GetSingleton()->RefreshStyle();
-			vrHistoryVisible = true;  // show expanded by default for each new conversation (VR only)
 		}
 
 		ImGui::Renderer::RenderMenus(a_opened);
