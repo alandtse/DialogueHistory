@@ -27,7 +27,7 @@ namespace ImGui
 		if (SUCCEEDED(hr)) {
 			if (auto renderer = RE::BSGraphics::Renderer::GetSingleton()) {
 				ComPtr<ID3D11Resource> pTexture{};
-				ID3D11Device*          device = (ID3D11Device*)renderer->data.forwarder;
+				ID3D11Device*          device = (ID3D11Device*)RENDERER_DATA(renderer).forwarder;
 
 				hr = DirectX::CreateTexture(device, image->GetImages(), 1, image->GetMetadata(), pTexture.GetAddressOf());
 

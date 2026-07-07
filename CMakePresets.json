@@ -33,69 +33,50 @@
     {
       "name": "windows",
       "hidden": true,
+      "binaryDir": "${sourceDir}/build",
       "cacheVariables": {
         "CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreaded$<$<CONFIG:Debug>:Debug>",
         "VCPKG_TARGET_TRIPLET": "x64-windows-static"
       }
     },
     {
-      "name": "vs2022",
+      "name": "base",
       "hidden": true,
+      "inherits": ["cmake-dev", "vcpkg", "windows"]
+    },
+    {
+      "name": "vs2022",
+      "inherits": ["base"],
       "generator": "Visual Studio 17 2022",
       "toolset": "v143"
     },
     {
-      "name": "se",
-      "hidden": true,
-      "binaryDir": "${sourceDir}/build"
-    },
-    {
-      "name": "ae",
-      "hidden": true,
-      "binaryDir": "${sourceDir}/buildae",
-      "cacheVariables": {
-        "BUILD_SKYRIMAE": true
-      }
-    },
-    {
-      "name": "vr",
-      "hidden": true,
-      "binaryDir": "${sourceDir}/buildvr",
-      "cacheVariables": {
-        "BUILD_SKYRIMVR": true
-      }
-    },
-    {
-      "name": "vs2022-windows-vcpkg-se",
-      "inherits": [
-        "cmake-dev",
-        "vcpkg",
-        "windows",
-        "vs2022",
-        "se"
-      ]
-    },
-    {
-      "name": "vs2022-windows-vcpkg-ae",
-      "inherits": [
-        "cmake-dev",
-        "vcpkg",
-        "windows",
-        "vs2022",
-        "ae"
-      ]
+      "name": "vs2026",
+      "inherits": ["base"],
+      "generator": "Visual Studio 18 2026",
+      "toolset": "v145"
     }
   ],
   "buildPresets": [
     {
-      "name": "vs2022-windows-vcpkg-ae",
-      "configurePreset": "vs2022-windows-vcpkg-ae",
+      "name": "vs2022",
+      "configurePreset": "vs2022",
       "configuration": "Release"
     },
     {
-      "name": "vs2022-windows-vcpkg-se",
-      "configurePreset": "vs2022-windows-vcpkg-se",
+      "name": "vs2022-debug",
+      "configurePreset": "vs2022",
+      "configuration": "Debug"
+    },
+    {
+      "name": "vs2026",
+      "configurePreset": "vs2026",
       "configuration": "Release"
+    },
+    {
+      "name": "vs2026-debug",
+      "configurePreset": "vs2026",
+      "configuration": "Debug"
     }
   ]
 }

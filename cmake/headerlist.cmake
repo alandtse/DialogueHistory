@@ -10,6 +10,7 @@ set(headers ${headers}
 	src/ImGui/Renderer.h
 	src/ImGui/Styles.h
 	src/ImGui/Util.h
+	src/ImGui/VRHelper.h
 	src/Input.h
 	src/LocalHistory.h
 	src/NND_API.h

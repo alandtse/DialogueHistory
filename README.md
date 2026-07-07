@@ -3,23 +3,26 @@
 SKSE plugin that adds dialogue history for Skyrim Special Edition
 
 ## Requirements
-* [CMake](https://cmake.org/)
-	* Add this to your `PATH`
-* [PowerShell](https://github.com/PowerShell/PowerShell/releases/latest)
-* [Vcpkg](https://github.com/microsoft/vcpkg)
-	* Add the environment variable `VCPKG_ROOT` with the value as the path to the folder containing vcpkg
-* [Visual Studio Community 2022](https://visualstudio.microsoft.com/)
-	* Desktop development with C++
-* [CommonLibSSE](https://github.com/powerof3/CommonLibSSE/tree/dev)
-	* You need to build from the powerof3/dev branch
-	* Add this as as an environment variable `CommonLibSSEPath`
+
+- [CMake](https://cmake.org/)
+  - Add this to your `PATH`
+- [PowerShell](https://github.com/PowerShell/PowerShell/releases/latest)
+- [Vcpkg](https://github.com/microsoft/vcpkg)
+  - Add the environment variable `VCPKG_ROOT` with the value as the path to the folder containing vcpkg
+- [Visual Studio Community 2022](https://visualstudio.microsoft.com/)
+  - Desktop development with C++
+- [CommonLibSSE](https://github.com/powerof3/CommonLibSSE/tree/dev)
+  - You need to build from the powerof3/dev branch
+  - Add this as as an environment variable `CommonLibSSEPath`
 
 ## Register Visual Studio as a Generator
-* Open `x64 Native Tools Command Prompt`
-* Run `cmake`
-* Close the cmd window
+
+- Open `x64 Native Tools Command Prompt`
+- Run `cmake`
+- Close the cmd window
 
 ## Building
+
 ```
 git clone https://github.com/powerof3/DialogueHistory.git
 cd DialogueHistory
@@ -30,14 +33,26 @@ git submodule update
 ```
 
 ### SSE
+
 ```
 cmake --preset vs2022-windows-vcpkg-se
 cmake --build build --config Release
 ```
+
 ### AE
+
 ```
 cmake --preset vs2022-windows-vcpkg-ae
 cmake --build buildae --config Release
 ```
-## License
-[MIT](LICENSE)
+
+## Licensing
+
+[GPL-3.0-or-later](COPYING) WITH a [Modding Exception and a GPL-3.0 Linking
+Exception (with Corresponding Source)](EXCEPTIONS.md), where:
+
+- **Modded Code** — Skyrim and its variants
+- **Modding Libraries** — [SKSE](https://skse.silverlock.org/), CommonLib and variants
+
+This is a VR fork of [powerof3's Dialogue History](https://github.com/powerof3/DialogueHistory);
+the original work is © powerofthree under the MIT License.

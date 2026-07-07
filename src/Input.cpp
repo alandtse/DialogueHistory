@@ -380,12 +380,12 @@ namespace Input
 				if (auto mouseEvent = event->AsMouseMoveEvent()) {
 					// pass in mouse pos to cursor menu, since we're blocking the main input queue
 					if (drawGlobalHistory && cursorMenu) {
-						cursorMenu->ProcessMouseMove(mouseEvent);
+						cursorMenu->AsMenuEventHandler()->ProcessMouseMove(mouseEvent);
 					}
 				} else if (const auto thumbstickEvent = event->AsThumbstickEvent()) {
 					// pass in thumbstick pos to cursor menu, since we're blocking the main input queue
 					if (drawGlobalHistory && cursorMenu) {
-						cursorMenu->ProcessThumbstick(thumbstickEvent);
+						cursorMenu->AsMenuEventHandler()->ProcessThumbstick(thumbstickEvent);
 					}
 				} else if (const auto charEvent = event->AsCharEvent()) {
 					if (drawGlobalHistory) {
