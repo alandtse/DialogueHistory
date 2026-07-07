@@ -193,10 +193,14 @@ namespace ImGui::Renderer
 			const auto local = MANAGER(LocalHistory);
 
 			// Mirror the helper shell's focus to Global's open-state both ways, but only adopt a
-			// shell-granted focus when nothing is shown (so Local's own focus can't pop Global).
+			// shell-granted focus when nothing is actually shown (so Local's own focus can't pop
+			// Global) -- a minimized Local panel doesn't count as "shown", so cycling to Global
+			// during a backgrounded conversation still opens the archive instead of snapping back
+			// to Local's reopen button.
 			static bool prevGlobalFocus = false;
 			const bool  globalFocus = VR::HasFocus(VR::Panel::Global);
-			if (globalFocus && !prevGlobalFocus && !global->IsGlobalHistoryOpen() && !local->IsDialogueMenuOpen()) {
+			const bool  localShown = local->IsDialogueMenuOpen() && local->IsVRHistoryVisible();
+			if (globalFocus && !prevGlobalFocus && !global->IsGlobalHistoryOpen() && !localShown) {
 				// Opened via the helper's own cycle/quick-select (no in-game hotkey involved) —
 				// default to the Conversation History tab rather than flat's Dialogue History
 				// default, since that's the more useful quick-glance view in VR.
