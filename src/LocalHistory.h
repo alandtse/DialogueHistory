@@ -18,6 +18,7 @@ namespace LocalHistory
 
 		bool IsDialogueMenuOpen() const;
 		bool IsLocalHistoryOpen() const;
+		bool IsVRHistoryVisible() const;
 		bool ShouldHide();
 
 		void ToggleActive();
@@ -42,8 +43,8 @@ namespace LocalHistory
 		// freezes time / blurs / plays a sound -- appropriate for a modal popup, not for an
 		// always-present pointer-focus side panel), the VR overlay shows its full content by
 		// default -- there's room for it and no flat screen to clutter -- and this just tracks
-		// whether the player minimized it for the current conversation. Reset true whenever a new
-		// dialogue starts.
+		// whether the player minimized it. Persists across conversations (not reset on a new
+		// dialogue) so a minimize choice sticks until the player reopens it themselves.
 		bool vrHistoryVisible{ true };
 
 		std::string        gameTimeString;
